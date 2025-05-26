@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Logs/Temp
+*.log
+*.tmp
+*.bak
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 환경설정/민감정보
+!application-example.yml
+application.yml
+application-*.yml
+application.properties
+application-*.properties
+*.env
+
+# 업로드 파일
+uploads/
