@@ -2,8 +2,7 @@ package CC_BE.CC_BE.controller;
 
 import CC_BE.CC_BE.domain.ProductModel;
 import CC_BE.CC_BE.domain.User;
-import CC_BE.CC_BE.dto.ProductModelRequest;
-import CC_BE.CC_BE.dto.ProductModelResponse;
+import CC_BE.CC_BE.dto.*;
 import CC_BE.CC_BE.security.CustomUserDetails;
 import CC_BE.CC_BE.service.ProductModelService;
 import CC_BE.CC_BE.service.ManualService;
@@ -56,11 +55,11 @@ public class ProductModelController {
         try {
             if (manualFile == null || manualFile.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "매뉴얼 파일은 필수입니다."));
+                        .body(CommonResponse.of("매뉴얼 파일은 필수입니다.", null));
             }
             if (!manualFile.getContentType().equals("application/pdf")) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "PDF 파일만 업로드 가능합니다."));
+                        .body(CommonResponse.of("PDF 파일만 업로드 가능합니다.", null));
             }
 
             User user = userDetails.getUser();
@@ -71,14 +70,11 @@ public class ProductModelController {
             manualService.uploadManual(manualFile, model, user);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ProductModelResponse.from(model));
+                    .body(CommonResponse.of("공용 모델이 성공적으로 생성되었습니다.", ProductModelResponse.from(model)));
         } catch (Exception e) {
-            log.error("공용 모델 생성 실패 - 이름: {}, 카테고리: {}, 에러: {}",
-                    name, categoryId, e.getMessage(), e);
-
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "공용 모델 생성 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("공용 모델 생성 실패 - 이름: {}, 카테고리: {}, 에러: {}", name, categoryId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("공용 모델 생성 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 
@@ -94,12 +90,12 @@ public class ProductModelController {
         try {
             if (manualFile == null || manualFile.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "매뉴얼 파일은 필수입니다."));
+                        .body(CommonResponse.of("매뉴얼 파일은 필수입니다.", null));
             }
 
             if (!manualFile.getContentType().equals("application/pdf")) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("message", "PDF 파일만 업로드 가능합니다."));
+                        .body(CommonResponse.of("PDF 파일만 업로드 가능합니다.", null));
             }
 
             User user = userDetails.getUser();
@@ -110,14 +106,11 @@ public class ProductModelController {
             manualService.uploadManual(manualFile, model, user);
 
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ProductModelResponse.from(model));
+                    .body(CommonResponse.of("개인 모델이 성공적으로 생성되었습니다.", ProductModelResponse.from(model)));
         } catch (Exception e) {
-            log.error("개인 모델 생성 실패 - 이름: {}, 사용자: {}, 에러: {}",
-                    name, userDetails != null ? userDetails.getUser().getId() : null, e.getMessage(), e);
-
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "개인 모델 생성 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("개인 모델 생성 실패 - 이름: {}, 사용자: {}, 에러: {}", name, userDetails != null ? userDetails.getUser().getId() : null, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("개인 모델 생성 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 
@@ -168,12 +161,11 @@ public class ProductModelController {
             log.info("공용 모델 수정 요청 - 모델 ID: {}, 이름: {}, 카테고리: {}, 관리자: {}", 
                 id, request.getName(), request.getCategoryId(), user.getId());
             ProductModel model = productModelService.updatePublicModel(id, request.getName(), request.getCategoryId());
-            return ResponseEntity.ok(ProductModelResponse.from(model));
+            return ResponseEntity.ok(CommonResponse.of("공용 모델이 성공적으로 수정되었습니다.", ProductModelResponse.from(model)));
         } catch (Exception e) {
             log.error("공용 모델 수정 실패 - ID: {}, 에러: {}", id, e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "공용 모델 수정 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("공용 모델 수정 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 
@@ -190,12 +182,11 @@ public class ProductModelController {
             User user = userDetails.getUser();
             log.info("개인 모델 수정 요청 - 모델 ID: {}, 이름: {}", id, request.getName());
             ProductModel model = productModelService.updatePersonalModel(id, request.getName(), user.getId());
-            return ResponseEntity.ok(ProductModelResponse.from(model));
+            return ResponseEntity.ok(CommonResponse.of("개인 모델이 성공적으로 수정되었습니다.", ProductModelResponse.from(model)));
         } catch (Exception e) {
             log.error("개인 모델 수정 실패 - ID: {}, 에러: {}", id, e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "개인 모델 수정 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("개인 모델 수정 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 
@@ -225,15 +216,11 @@ public class ProductModelController {
             User user = userDetails.getUser();
             log.info("개인 모델 삭제 요청 - 모델 ID: {}, 사용자 ID: {}", id, user.getId());
             productModelService.deletePersonalModel(id, user.getId());
-
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "개인 모델이 성공적으로 삭제되었습니다.");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(CommonResponse.of("개인 모델이 성공적으로 삭제되었습니다.", null));
         } catch (Exception e) {
             log.error("개인 모델 삭제 실패 - ID: {}, 에러: {}", id, e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "개인 모델 삭제 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("개인 모델 삭제 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 
@@ -249,15 +236,11 @@ public class ProductModelController {
             User user = userDetails.getUser();
             log.info("관리자 모델 삭제 요청 - 모델 ID: {}, 관리자 ID: {}", id, user.getId());
             productModelService.deleteModelByAdmin(id);
-
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "모델이 성공적으로 삭제되었습니다.");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(CommonResponse.of("모델이 성공적으로 삭제되었습니다.", null));
         } catch (Exception e) {
             log.error("관리자 모델 삭제 실패 - ID: {}, 에러: {}", id, e.getMessage(), e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "모델 삭제 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(CommonResponse.of("모델 삭제 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
 

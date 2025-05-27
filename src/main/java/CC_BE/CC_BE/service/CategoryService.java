@@ -2,8 +2,10 @@ package CC_BE.CC_BE.service;
 
 import CC_BE.CC_BE.domain.Brand;
 import CC_BE.CC_BE.domain.Category;
+import CC_BE.CC_BE.domain.ProductModel;
 import CC_BE.CC_BE.repository.BrandRepository;
 import CC_BE.CC_BE.repository.CategoryRepository;
+import CC_BE.CC_BE.repository.ProductModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final BrandService brandService;
+    private final ProductModelRepository productModelRepository;
 
     /**
      * 모든 카테고리 목록을 조회합니다.
@@ -88,10 +91,20 @@ public class CategoryService {
 
     /**
      * 특정 카테고리를 삭제합니다.
+     * 카테고리 삭제 시 연관된 제품 모델도 함께 삭제됩니다.
+     * (제품 모델이 삭제되면 cascade 설정에 의해 매뉴얼도 자동 삭제됨)
      * @param id 삭제할 카테고리의 ID
      */
     @Transactional
     public void deleteCategory(Long id) {
-        categoryRepository.deleteById(id);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+
+        // 카테고리에 속한 모든 제품 모델 삭제
+        List<ProductModel> models = productModelRepository.findByCategory(category);
+        productModelRepository.deleteAll(models);
+
+        // 카테고리 삭제
+        categoryRepository.delete(category);
     }
 }

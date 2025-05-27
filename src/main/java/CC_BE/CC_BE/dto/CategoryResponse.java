@@ -1,18 +1,23 @@
 package CC_BE.CC_BE.dto;
 
 import CC_BE.CC_BE.domain.Category;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
-@Getter @Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class CategoryResponse {
     private Long id;
     private String name;
+    private Long brandId;
 
     public static CategoryResponse from(Category category) {
-        CategoryResponse response = new CategoryResponse();
-        response.setId(category.getId());
-        response.setName(category.getName());
-        return response;
+        return new CategoryResponse(
+            category.getId(),
+            category.getName(),
+            category.getBrand().getId()
+        );
     }
 } 
