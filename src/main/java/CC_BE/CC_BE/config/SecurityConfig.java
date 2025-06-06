@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/brands/**", "/api/categories/**", "/api/models/**").permitAll()
                         .requestMatchers("/api/models/category/*/public").permitAll()
                         .requestMatchers("/api/manuals/model/*/download").permitAll()
+                        // 챗봇 API는 누구나 접근 가능
+                        .requestMatchers("/api/chat/**").permitAll()
                         // 인증된 사용자만 접근 가능
                         .requestMatchers("/api/models/personal/**").authenticated()
                         // 관리자만 접근 가능 (생성/수정/삭제)

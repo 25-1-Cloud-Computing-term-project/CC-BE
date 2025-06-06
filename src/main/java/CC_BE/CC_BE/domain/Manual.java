@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "manual")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Manual {
     /**
      * 매뉴얼의 고유 식별자
@@ -22,11 +22,13 @@ public class Manual {
     /**
      * 매뉴얼 파일의 원본 이름
      */
+    @Column(nullable = false)
     private String fileName;
 
     /**
      * 매뉴얼 파일의 저장 경로
      */
+    @Column(nullable = false)
     private String filePath;
 
     /**
@@ -49,4 +51,16 @@ public class Manual {
     @JoinColumn(name = "product_model_id")
     @JsonIgnoreProperties({"manual", "hibernateLazyInitializer", "handler"})
     private ProductModel productModel;
+
+    /**
+     * 매뉴얼이 속한 제품 모델의 이름
+     */
+    @Column(nullable = false)
+    private String modelName;
+
+    /**
+     * 매뉴얼이 ML 처리되었는지 여부
+     */
+    @Column(nullable = false)
+    private boolean mlProcessed;
 }

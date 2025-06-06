@@ -9,7 +9,10 @@ import lombok.*;
  */
 @Entity
 @Table(name = "users")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
     /**
      * 사용자의 고유 식별자
@@ -20,7 +23,7 @@ public class User {
     /**
      * 사용자의 이메일 (로그인 아이디로 사용)
      */
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     /**
@@ -33,5 +36,5 @@ public class User {
      * 사용자의 역할 (ROLE_USER, ROLE_ADMIN 등)
      */
     @Column(nullable = false)
-    private String role = "ROLE_USER";
+    private String role;  // ROLE_USER, ROLE_ADMIN
 }

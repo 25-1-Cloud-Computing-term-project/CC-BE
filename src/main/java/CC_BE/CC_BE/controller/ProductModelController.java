@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,7 +28,6 @@ public class ProductModelController {
 
     /**
      * 모든 공용 모델 조회
-     * 브랜드와 카테고리로 필터링 가능한 공용 모델만 반환
      */
     @GetMapping("/public")
     public ResponseEntity<List<ProductModelResponse>> getAllPublicModels() {
@@ -43,34 +40,33 @@ public class ProductModelController {
 
     /**
      * 공용 모델 생성 (관리자 전용)
-     * 브랜드와 카테고리 정보가 필요
      */
     @PostMapping("/public")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createPublicModel(
+    public ResponseEntity<CommonResponse<ProductModelResponse>> createPublicModel(
             @RequestParam("name") String name,
             @RequestParam("categoryId") Long categoryId,
-            @RequestPart("manualFile") MultipartFile manualFile,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
+            @RequestParam("manualFile") MultipartFile manualFile) {
         try {
             if (manualFile == null || manualFile.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(CommonResponse.of("매뉴얼 파일은 필수입니다.", null));
             }
-            if (!manualFile.getContentType().equals("application/pdf")) {
+
+            String filename = manualFile.getOriginalFilename();
+            String contentType = manualFile.getContentType();
+            
+            if (filename == null || (!filename.toLowerCase().endsWith(".pdf")) || 
+                (contentType != null && !contentType.toLowerCase().contains("pdf"))) {
                 return ResponseEntity.badRequest()
                         .body(CommonResponse.of("PDF 파일만 업로드 가능합니다.", null));
             }
 
-            User user = userDetails.getUser();
-            log.info("공용 모델 생성 요청 - 이름: {}, 카테고리: {}, 관리자: {}", name, categoryId, user.getId());
-            ProductModel model = productModelService.createPublicModel(name, categoryId);
+            log.info("공용 모델 생성 요청 - 이름: {}, 카테고리: {}", name, categoryId);
+            ProductModelResponse model = productModelService.createPublicModel(name, categoryId, manualFile);
             log.info("공용 모델 생성 성공 - ID: {}", model.getId());
 
-            manualService.uploadManual(manualFile, model, user);
-
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(CommonResponse.of("공용 모델이 성공적으로 생성되었습니다.", ProductModelResponse.from(model)));
+            return ResponseEntity.ok(CommonResponse.of("공용 모델이 성공적으로 생성되었습니다.", model));
         } catch (Exception e) {
             log.error("공용 모델 생성 실패 - 이름: {}, 카테고리: {}, 에러: {}", name, categoryId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -83,9 +79,9 @@ public class ProductModelController {
      */
     @PostMapping("/personal")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> createPersonalModel(
+    public ResponseEntity<CommonResponse<ProductModelResponse>> createPersonalModel(
             @RequestParam("name") String name,
-            @RequestPart("manualFile") MultipartFile manualFile,
+            @RequestParam("manualFile") MultipartFile manualFile,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
             if (manualFile == null || manualFile.isEmpty()) {
@@ -93,27 +89,27 @@ public class ProductModelController {
                         .body(CommonResponse.of("매뉴얼 파일은 필수입니다.", null));
             }
 
-            if (!manualFile.getContentType().equals("application/pdf")) {
+            String filename = manualFile.getOriginalFilename();
+            String contentType = manualFile.getContentType();
+            
+            if (filename == null || (!filename.toLowerCase().endsWith(".pdf")) || 
+                (contentType != null && !contentType.toLowerCase().contains("pdf"))) {
                 return ResponseEntity.badRequest()
                         .body(CommonResponse.of("PDF 파일만 업로드 가능합니다.", null));
             }
 
             User user = userDetails.getUser();
-            log.info("개인 모델 생성 요청 - 이름: {}, 사용자: {}", name, user.getId());
-            ProductModel model = productModelService.createPersonalModel(name, user.getId());
+            log.info("개인 모델 생성 요청 - 이름: {}, 사용자: {}", name, user.getEmail());
+            ProductModelResponse model = productModelService.createPersonalModel(name, manualFile, user.getEmail());
             log.info("개인 모델 생성 성공 - ID: {}", model.getId());
 
-            manualService.uploadManual(manualFile, model, user);
-
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(CommonResponse.of("개인 모델이 성공적으로 생성되었습니다.", ProductModelResponse.from(model)));
+            return ResponseEntity.ok(CommonResponse.of("개인 모델이 성공적으로 생성되었습니다.", model));
         } catch (Exception e) {
-            log.error("개인 모델 생성 실패 - 이름: {}, 사용자: {}, 에러: {}", name, userDetails != null ? userDetails.getUser().getId() : null, e.getMessage(), e);
+            log.error("개인 모델 생성 실패 - 이름: {}, 사용자: {}, 에러: {}", name, userDetails.getUser().getEmail(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(CommonResponse.of("개인 모델 생성 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
-
 
     /**
      * 특정 카테고리의 공용 모델 조회
@@ -152,7 +148,7 @@ public class ProductModelController {
      */
     @PutMapping("/public/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updatePublicModel(
+    public ResponseEntity<CommonResponse<ProductModelResponse>> updatePublicModel(
             @PathVariable Long id,
             @RequestBody ProductModelRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -174,7 +170,7 @@ public class ProductModelController {
      */
     @PutMapping("/personal/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> updatePersonalModel(
+    public ResponseEntity<CommonResponse<ProductModelResponse>> updatePersonalModel(
             @PathVariable Long id,
             @RequestBody ProductModelRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -192,7 +188,6 @@ public class ProductModelController {
 
     /**
      * 모든 모델 조회 (관리자 전용)
-     * 공용 모델과 개인 모델 모두 조회
      */
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
@@ -209,7 +204,7 @@ public class ProductModelController {
      */
     @DeleteMapping("/personal/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> deletePersonalModel(
+    public ResponseEntity<CommonResponse<Void>> deletePersonalModel(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
@@ -229,7 +224,7 @@ public class ProductModelController {
      */
     @DeleteMapping("/admin/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteModelByAdmin(
+    public ResponseEntity<CommonResponse<Void>> deleteModelByAdmin(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         try {
@@ -243,5 +238,4 @@ public class ProductModelController {
                     .body(CommonResponse.of("모델 삭제 중 오류가 발생했습니다: " + e.getMessage(), null));
         }
     }
-
 }

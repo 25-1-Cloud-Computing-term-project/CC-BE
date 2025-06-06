@@ -10,7 +10,7 @@ import lombok.*;
  */
 @Entity
 @Table(name = "product_model")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProductModel {
     /**
      * 제품 모델의 고유 식별자

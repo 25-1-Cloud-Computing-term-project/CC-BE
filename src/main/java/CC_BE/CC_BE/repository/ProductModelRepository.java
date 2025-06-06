@@ -40,4 +40,11 @@ public interface ProductModelRepository extends JpaRepository<ProductModel, Long
      * @return 해당 카테고리의 공용 모델 목록
      */
     List<ProductModel> findByCategoryAndOwnerIsNull(Category category);
+
+    /**
+     * 주어진 이름의 모델이 존재하는지 확인합니다.
+     * @param name 확인할 모델 이름
+     * @return 존재 여부
+     */
+    boolean existsByName(String name);
 }

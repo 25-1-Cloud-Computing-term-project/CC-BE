@@ -2,8 +2,10 @@ package CC_BE.CC_BE.service;
 
 import CC_BE.CC_BE.domain.Brand;
 import CC_BE.CC_BE.domain.Category;
+import CC_BE.CC_BE.domain.Manual;
 import CC_BE.CC_BE.domain.ProductModel;
 import CC_BE.CC_BE.domain.User;
+import CC_BE.CC_BE.dto.ProductModelResponse;
 import CC_BE.CC_BE.repository.CategoryRepository;
 import CC_BE.CC_BE.repository.ProductModelRepository;
 import CC_BE.CC_BE.repository.UserRepository;
@@ -11,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +27,7 @@ public class ProductModelService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final ManualService manualService;
+    private final MLServerService mlServerService;
 
     /**
      * 모든 공용 모델을 조회합니다.
@@ -37,45 +42,112 @@ public class ProductModelService {
 
     /**
      * 새로운 공용 모델을 생성합니다.
-     * @param name 생성할 모델의 이름
+     * 1. 모델명 유효성을 검사합니다.
+     * 2. 매뉴얼 PDF를 ML 서버로 전송하여 처리를 요청합니다.
+     * 3. 매뉴얼 파일을 로컬 스토리지에 저장합니다.
+     * 4. 공용 모델 정보를 데이터베이스에 저장합니다.
+     *
+     * @param name 생성할 모델의 이름 (한글 불가, 3글자 이상)
      * @param categoryId 모델이 속할 카테고리의 ID
+     * @param manualFile 모델의 매뉴얼 PDF 파일
      * @return 생성된 공용 모델 정보
-     * @throws IllegalArgumentException 카테고리를 찾을 수 없는 경우
+     * @throws RuntimeException 모델 생성 중 오류 발생 시
      */
     @Transactional
-    public ProductModel createPublicModel(String name, Long categoryId) {
-        log.debug("Creating new public model with name: {}, categoryId: {}", name, categoryId);
+    public ProductModelResponse createPublicModel(String name, Long categoryId, MultipartFile manualFile) {
+        // 모델명 유효성 검사
+        validateModelName(name);
+
+        // 카테고리 조회
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        
-        ProductModel model = new ProductModel();
-        model.setName(name);
-        model.setCategory(category);
-        model.setBrand(category.getBrand());
-        model.setOwner(null); // 공용 모델
-        
-        return productModelRepository.save(model);
+                .orElseThrow(() -> new RuntimeException("카테고리를 찾을 수 없습니다."));
+
+        try {
+            // ML 서버에 매뉴얼 업로드
+            boolean mlServerSuccess = mlServerService.uploadManualToMLServer(manualFile, name);
+            if (!mlServerSuccess) {
+                throw new RuntimeException("ML 서버 처리 중 오류가 발생했습니다.");
+            }
+
+            // 공용 모델 생성
+            ProductModel productModel = ProductModel.builder()
+                    .name(name)
+                    .category(category)
+                    .brand(category.getBrand())
+                    .build();
+
+            // 모델 저장
+            ProductModel savedModel = productModelRepository.save(productModel);
+
+            // 매뉴얼 저장 및 모델과 연결
+            Manual savedManual = manualService.saveManual(manualFile, name);
+            savedManual.setProductModel(savedModel);  // 매뉴얼과 모델 연결
+            
+            // 모델에도 매뉴얼 설정
+            savedModel.setManual(savedManual);
+            
+            // 최종 저장
+            savedModel = productModelRepository.save(savedModel);
+            
+            return ProductModelResponse.from(savedModel);
+        } catch (IOException e) {
+            throw new RuntimeException("파일 처리 중 오류가 발생했습니다.", e);
+        }
     }
 
     /**
      * 새로운 개인 모델을 생성합니다.
-     * @param name 생성할 모델의 이름
-     * @param userId 모델 소유자의 ID
+     * 1. 모델명 유효성을 검사합니다.
+     * 2. 매뉴얼 PDF를 ML 서버로 전송하여 처리를 요청합니다.
+     * 3. 매뉴얼 파일을 로컬 스토리지에 저장합니다.
+     * 4. 개인 모델 정보를 데이터베이스에 저장합니다.
+     *
+     * @param name 생성할 모델의 이름 (한글 불가, 3글자 이상)
+     * @param manualFile 모델의 매뉴얼 PDF 파일
+     * @param userEmail 모델 소유자의 이메일
      * @return 생성된 개인 모델 정보
-     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     * @throws RuntimeException 모델 생성 중 오류 발생 시
      */
     @Transactional
-    public ProductModel createPersonalModel(String name, Long userId) {
-        log.debug("Creating new personal model with name: {}, userId: {}", name, userId);
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        
-        ProductModel model = new ProductModel();
-        model.setName(name);
-        model.setOwner(owner);
-        // 개인 모델은 브랜드와 카테고리를 설정하지 않음
-        
-        return productModelRepository.save(model);
+    public ProductModelResponse createPersonalModel(String name, MultipartFile manualFile, String userEmail) {
+        // 모델명 유효성 검사
+        validateModelName(name);
+
+        // 사용자 조회
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        try {
+            // ML 서버에 매뉴얼 업로드
+            boolean mlServerSuccess = mlServerService.uploadManualToMLServer(manualFile, name);
+            if (!mlServerSuccess) {
+                throw new RuntimeException("ML 서버 처리 중 오류가 발생했습니다.");
+            }
+
+            // 개인 모델 생성
+            ProductModel productModel = ProductModel.builder()
+                    .name(name)
+                    .owner(user)
+                    .build();
+
+            // 모델 저장
+            ProductModel savedModel = productModelRepository.save(productModel);
+
+            // 매뉴얼 저장 및 모델과 연결
+            Manual savedManual = manualService.saveManual(manualFile, name);
+            savedManual.setProductModel(savedModel);  // 매뉴얼과 모델 연결
+            savedManual.setUploader(user);  // 매뉴얼 업로더 설정
+            
+            // 모델에도 매뉴얼 설정
+            savedModel.setManual(savedManual);
+            
+            // 최종 저장
+            savedModel = productModelRepository.save(savedModel);
+
+            return ProductModelResponse.from(savedModel);
+        } catch (IOException e) {
+            throw new RuntimeException("파일 처리 중 오류가 발생했습니다.", e);
+        }
     }
 
     /**
@@ -216,5 +288,30 @@ public class ProductModelService {
     public ProductModel findById(Long id) {
         return productModelRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("모델을 찾을 수 없습니다: " + id));
+    }
+
+    /**
+     * 모델명의 유효성을 검사합니다.
+     * 1. 모델명이 null이거나 비어있지 않은지 확인
+     * 2. 모델명이 3글자 이상인지 확인
+     * 3. 모델명에 한글이 포함되어 있지 않은지 확인
+     * 4. 이미 존재하는 모델명인지 확인
+     *
+     * @param name 검사할 모델명
+     * @throws IllegalArgumentException 유효성 검사 실패 시
+     */
+    private void validateModelName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("모델명은 필수입니다.");
+        }
+        if (name.length() < 3) {
+            throw new IllegalArgumentException("모델명은 3글자 이상이어야 합니다.");
+        }
+        if (name.matches(".*[ㄱ-ㅎㅏ-ㅣ가-힣].*")) {
+            throw new IllegalArgumentException("모델명에 한글을 사용할 수 없습니다.");
+        }
+        if (productModelRepository.existsByName(name)) {
+            throw new IllegalArgumentException("이미 존재하는 모델명입니다.");
+        }
     }
 }
