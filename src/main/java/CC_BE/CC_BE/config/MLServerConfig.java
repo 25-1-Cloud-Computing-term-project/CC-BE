@@ -22,13 +22,23 @@ public class MLServerConfig {
      */
     @Bean
     public RestTemplate mlServerRestTemplate() {
-        return new RestTemplateBuilder()
-            .customizers((RestTemplateCustomizer) restTemplate -> {
-                if (restTemplate.getRequestFactory() instanceof SimpleClientHttpRequestFactory factory) {
-                    factory.setConnectTimeout(30_000); // 30초
-                    factory.setReadTimeout(300_000);   // 5분
-                }
-            })
-            .build();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(30_000);    // 30초
+        factory.setReadTimeout(300_000);      // 5분
+        factory.setBufferRequestBody(false);  // 대용량 파일 전송을 위한 설정
+
+        RestTemplate restTemplate = new RestTemplate(factory);
+        
+        // 요청/응답 로깅을 위한 인터셉터 추가
+        restTemplate.getInterceptors().add((request, body, execution) -> {
+            log.info("ML 서버 요청 URL: {}", request.getURI());
+            log.info("ML 서버 요청 메소드: {}", request.getMethod());
+            log.info("ML 서버 요청 헤더: {}", request.getHeaders());
+            return execution.execute(request, body);
+        });
+
+        return restTemplate;
     }
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MLServerConfig.class);
 } 

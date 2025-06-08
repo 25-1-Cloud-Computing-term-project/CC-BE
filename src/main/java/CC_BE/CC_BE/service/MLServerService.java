@@ -62,24 +62,30 @@ public class MLServerService {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
             log.info("ML 서버로 요청 전송 시작");
 
-            ResponseEntity<MLServerResponse> response = mlServerRestTemplate.postForEntity(
-                    url, requestEntity, MLServerResponse.class);
-            
-            log.info("ML 서버 응답 수신");
-            log.info("응답 상태 코드: {}", response.getStatusCode());
-            log.info("응답 헤더: {}", response.getHeaders());
-            log.info("응답 바디: {}", response.getBody());
+            try {
+                ResponseEntity<MLServerResponse> response = mlServerRestTemplate.postForEntity(
+                        url, requestEntity, MLServerResponse.class);
+                
+                log.info("ML 서버 응답 수신");
+                log.info("응답 상태 코드: {}", response.getStatusCode());
+                log.info("응답 헤더: {}", response.getHeaders());
+                log.info("응답 바디: {}", response.getBody());
 
-            String msg = response.getBody() != null ? response.getBody().getMessage() : null;
-            boolean success = msg != null && (
-                "completed".equalsIgnoreCase(msg) ||
-                "PDF uploaded successfully".equalsIgnoreCase(msg)
-            );
-            
-            log.info("ML 서버 처리 결과: {}", success ? "성공" : "실패");
-            return success;
+                String msg = response.getBody() != null ? response.getBody().getMessage() : null;
+                boolean success = msg != null && (
+                    "completed".equalsIgnoreCase(msg) ||
+                    "PDF uploaded successfully".equalsIgnoreCase(msg)
+                );
+                
+                log.info("ML 서버 처리 결과: {}", success ? "성공" : "실패");
+                return success;
+            } catch (Exception e) {
+                log.error("ML 서버 요청 중 예외 발생: {}", e.getMessage());
+                log.error("상세 에러: ", e);
+                throw new RuntimeException("ML 서버 통신 실패: " + e.getMessage(), e);
+            }
         } catch (Exception e) {
-            log.error("ML 서버 요청 중 예외 발생", e);
+            log.error("ML 서버 요청 준비 중 예외 발생", e);
             throw e;
         }
     }
